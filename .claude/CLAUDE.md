@@ -5,7 +5,7 @@ Apply these rules when working in an existing application. The goal is a small, 
 ## Precedence and protection
 
 - Obey higher-priority instructions and permissions. Within the project, applicable existing project instructions (including nested/path-scoped rules) and established interfaces take precedence over this generic kit. Do not resolve a genuine material rule conflict silently.
-- Never overwrite, edit, rename or delete a project's existing CLAUDE.md, AGENTS.md, .claude/rules, agents, skills, hooks, .cursor/rules or comparable instructions without explicit request. Preserve installed toolkit protections.
+- Never overwrite, edit, rename or delete a project's existing CLAUDE.md, AGENTS.md, .claude/rules, agents, skills, hooks, .cursor/rules or comparable instructions without explicit request. Likewise never move, replace or reset an existing database; if its migrations are inconsistent, configure a separate disposable database instead. Preserve installed toolkit protections.
 - Only `learn-codebase` may create new, evidence-backed files under .claude/rules/, and only when permitted; never overwrite an existing file. Verify path nonexistence immediately before writing. These notes cannot override project rules.
 - Do not bypass auth, authorization, tests, permissions, protected-path hooks or environment restrictions to make progress. Never disclose secrets.
 
@@ -13,8 +13,8 @@ Apply these rules when working in an existing application. The goal is a small, 
 
 | User intent | Default action |
 | --- | --- |
-| "Learn this codebase"; "explain the architecture" | Delegate to `learn-codebase`; deliver its useful engineering onboarding in the response, not just a pointer to a file. |
-| "Learn this codebase and get it running locally" | Delegate `learn-codebase` with startup requested; deliver architecture AND exact observed or documented local DB/app/auth/Swagger setup. |
+| "Learn this codebase"; "explain the architecture" | Delegate to `learn-codebase`; deliver PART 1, the full engineering onboarding, in the response, not a pointer to a file. |
+| "Learn this codebase and get it running locally" | Delegate `learn-codebase` with startup requested; deliver two independent deliverables: PART 1 full engineering onboarding AND PART 2 verified local development (DB, app, Swagger, auth, HTTP checks). |
 | "Build/implement/extend this"; pasted requirement or ticket | Use the `build-feature` skill. It frames the end-state and milestones, then delegates implementation, live verification, automatic independent review and Swagger acceptance readiness. |
 | "Review these changes" | Collect working-tree changes, including untracked new files, and delegate an independent review. |
 | "Fix this error/test failure" | Delegate to `fix-failure` with reproducible evidence. |
@@ -57,6 +57,8 @@ For a substantial feature, define 2–4 vertical milestones that leave an observ
 ## Efficient exploration
 
 Read existing instructions first. Follow one representative request from entry point/router through schema/auth/service/persistence/response and nearby tests. Identify and record the documented startup, restart, database, migration, seeding and authentication procedures, and the test strategy. Read targeted relevant files, not the whole repository. The project's observed conventions win over generic preferences; distinguish documented rule from observed pattern and unresolved assumption.
+
+**Onboarding output.** A learn request has two independent deliverables. PART 1, the full engineering onboarding, is always mandatory and appears in full in the main response. It covers: what the product does, its users, workflows and business rules; the architecture, entry point and module responsibilities; at least one request traced end to end by file and function (route, validation, auth, authorization, service, database, response); data models, relationships, session lifecycle and transaction boundaries; authentication, roles and where access is enforced; implementation conventions; evidence-backed gotchas, legacy patterns and risks; and where future changes belong. PART 2, local development, is mandatory when the request asks to run the app (see "Application lifecycle and local development"). A running application, a startup report, a pointer to files or generated rules never replaces Part 1, and Part 1 is not shortened because the app runs. When relaying `learn-codebase`, pass both parts on in full rather than summarising Part 1. Keep exploration to the representative files needed to explain the application, then stop.
 
 `learn-codebase` may create concise new scoped .claude/rules/*.md recording previously undocumented verified architecture, persistence, auth, testing and gotchas; link to source paths, avoid duplicates and speculation. These notes should improve subsequent agent onboarding. Never make writing rules a blocker to answering or starting the application.
 
