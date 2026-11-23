@@ -10,7 +10,7 @@ You decide. The agents do the work. You write no application code. **You never n
 
 | You say | What happens |
 | --- | --- |
-| "Explore this repository", "learn this codebase", "explain the architecture" | `sam-learn-codebase` explores, read-only |
+| "Explore this repository", "learn this codebase", "explain the architecture" | `sam-learn-codebase` explains it and may add new notes under `.claude/rules/` |
 | "Build this", "here's the task", "implement this requirement" | The build workflow below, ending with `sam-implement-feature` doing the coding |
 | "Review these changes" | The orchestrator collects the diff; `sam-review` reviews, read-only |
 | "Fix this bug", "investigate this failure" | `sam-fix-failure` finds the root cause and fixes it |
@@ -24,7 +24,7 @@ The `sam-` prefix only avoids name collisions with a project's own agents and sk
 | Item | Kind | Tools | Use it for |
 | --- | --- | --- | --- |
 | `/sam-build-feature` | skill (orchestration) | main conversation | Scoping a feature and driving the agents below. It is the skill; the agent that implements is `sam-implement-feature` |
-| `sam-learn-codebase` | agent | Read, Grep, Glob | Read-only. Finds the project's existing rules and conflicts first, then explains the architecture and traces one request. If you also ask to run the app, the main conversation does that and reports it separately as LOCAL DEVELOPMENT STATUS |
+| `sam-learn-codebase` | agent | Read, Grep, Glob, Write, Bash | Cannot edit existing files. Finds the project's existing rules and conflicts first, explains the architecture and traces one request, may add new non-conflicting notes under `.claude/rules/` at paths that do not exist, and starts the app locally only when you ask |
 | `sam-implement-feature` | agent | Read, Grep, Glob, Edit, Write, Bash | Implements the agreed v1 (in small milestones when it is large) and shows it working with real requests; after you confirm the behaviour, writes and runs the formal tests |
 | `sam-review` | agent | Read, Grep, Glob | Independent read-only review of the diff against the requirements |
 | `sam-fix-failure` | agent | Read, Grep, Glob, Edit, Write, Bash | Root-causes a failure and makes the smallest fix |

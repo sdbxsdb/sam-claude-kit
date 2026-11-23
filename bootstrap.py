@@ -56,9 +56,14 @@ SKILL_REFERENCES = {"python-engineering": ("references/pytest-and-async.md",)}
 NAMES = tuple(dict.fromkeys(AGENTS + SKILLS))  # an agent and a skill may share a name
 
 # Read-only agents must keep exactly these restrictions, or the kit is rejected.
-READ_ONLY_AGENTS = ("learn-codebase", "review")
+READ_ONLY_AGENTS = ("review",)
 READ_ONLY_TOOLS = ["Read", "Grep", "Glob"]
 READ_ONLY_DISALLOWED = {"Write", "Edit", "NotebookEdit", "Bash"}
+
+# The onboarding agent may write new files and run commands but never edit existing ones. It may use only these tools.
+ONBOARDING_AGENT = "learn-codebase"
+ONBOARDING_TOOLS = {"Read", "Grep", "Glob", "Write", "Bash"}
+ONBOARDING_DISALLOWED = {"Edit", "NotebookEdit"}
 
 # Agents that implement or fix. They must declare an explicit tool list that can read, edit and run
 # tests, and nothing broader (no Task, so they cannot spawn agents; no web or MCP tools).
@@ -191,6 +196,13 @@ def validate_component(kind: str, name: str, text: str, label: str) -> None:
         missing = READ_ONLY_DISALLOWED - set(csv(fm.get("disallowedTools", "")))
         if missing:
             raise Abort("%s: read-only agent must disallow: %s" % (label, ", ".join(sorted(missing))))
+    if kind == "agent" and base == ONBOARDING_AGENT:
+        tools = set(csv(fm.get("tools", "")))
+        if tools != ONBOARDING_TOOLS:
+            raise Abort("%s: onboarding agent must have exactly these tools: %s" % (label, ", ".join(sorted(ONBOARDING_TOOLS))))
+        missing = ONBOARDING_DISALLOWED - set(csv(fm.get("disallowedTools", "")))
+        if missing:
+            raise Abort("%s: onboarding agent must disallow: %s" % (label, ", ".join(sorted(missing))))
     if kind == "agent" and base in WRITE_AGENTS:
         tools = set(csv(fm.get("tools", "")))
         if not WRITE_TOOLS_REQUIRED <= tools:

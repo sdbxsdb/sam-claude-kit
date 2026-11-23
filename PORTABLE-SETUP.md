@@ -16,7 +16,7 @@ Get Sam's Claude Code configuration into another environment with as little setu
 
 | | Custom subagents (`sam-review` and others) | Skills (`/sam-build-feature` and others) | Rules loaded from files | Tool restrictions enforced |
 | --- | --- | --- | --- | --- |
-| A, B, C | Yes | Yes | Yes | Yes (`sam-review` and `sam-learn-codebase` have only Read, Grep, Glob; `sam-implement-feature` and `sam-fix-failure` have Read, Grep, Glob, Edit, Write, Bash and no way to start other agents) |
+| A, B, C | Yes | Yes | Yes | Yes (`sam-review` has only Read, Grep, Glob; `sam-learn-codebase` has Read, Grep, Glob, Write, Bash and cannot Edit; `sam-implement-feature` and `sam-fix-failure` have Read, Grep, Glob, Edit, Write, Bash; none can start other agents) |
 | D, terminal paste | Yes, once decoded and installed | Yes | Yes | Yes |
 | D, chat-only paste | No | No | No, pasted text only | No |
 | E | No | No | No, pasted text only | No |
@@ -79,7 +79,7 @@ In Claude Code: `/memory` lists `CLAUDE.local.md` (or `.claude/rules/sam-rules.m
 **Use it by talking normally.** You never need to name an agent or skill. The rules loaded at session start tell Claude to route by what you ask:
 
 ```text
-Explore this repository / explain the architecture      -> read-only exploration agent
+Explore this repository / explain the architecture      -> onboarding agent (cannot edit existing files)
 Here's the task: add an endpoint that does X           -> the build workflow (scope, implement, one checkpoint, tests, review)
 Review these changes                                   -> read-only review agent
 Fix this bug / investigate this failure                -> fix agent
@@ -100,7 +100,7 @@ Use the sam-review agent on this diff and these requirements: <paste>
 Use the sam-fix-failure agent on this failure: <paste the error>
 ```
 
-`sam-review` and `sam-learn-codebase` cannot run commands, so the orchestrator (or you) pastes the diff for review. `sam-implement-feature` and `sam-fix-failure` edit files and run tests. Agents cannot start other agents, so only the main conversation delegates.
+`sam-review` cannot run commands, so the orchestrator (or you) pastes the diff for review. `sam-learn-codebase` can write new files under `.claude/rules/` and run commands, but cannot edit existing files. `sam-implement-feature` and `sam-fix-failure` edit files and run tests. Agents cannot start other agents, so only the main conversation delegates.
 
 **Unavailable.** Nothing from the kit is unavailable here. Running Claude Code at all requires its own login, which the kit does not touch.
 
