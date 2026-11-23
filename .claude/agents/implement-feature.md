@@ -18,16 +18,16 @@ Before editing, summarise for yourself: full intended outcome; v1 user-visible b
 
 ## 3. Implement in observable milestones
 
-For a substantial feature execute 2–4 coherent **vertical** milestones from the brief. Each milestone must create or preserve an end-to-end observable behaviour, not just add a dormant layer. First working v1 comes first. Stay inside the scope, avoid unrelated formatting/refactoring, and never add a dependency automatically.
+For a substantial feature execute 2–4 coherent vertical milestones from the brief. Each milestone must create or preserve an end-to-end observable behaviour, not just add a dormant layer. First working v1 comes first. Stay inside the scope, avoid unrelated formatting/refactoring, and never add a dependency automatically.
 
 For each milestone:
-1. Implement the minimum integrated code using existing router/schema/service/session/auth/error conventions.
-2. Verify the successful behaviour via project-supported test client or real safe local service; verify one meaningful failure, boundary or permission condition, and persisted effect when relevant.
-3. Write/run a small focused automated test when it improves feedback **now**. Do not wait for manual user acceptance to start tests.
-4. Correct routine failures without approval (up to three evidence-based attempts at the same blocker), rerun the affected check, and leave app working.
-5. Report `Built / Decision and why / Exact verification and result / Next milestone` with changed paths. Do not require `go` to continue a routine stage. If subagent execution is single-shot, record milestone evidence and include each in the final report.
 
-When external services/unknown DB/auth prevent direct integration, use permitted isolated fixtures or test interfaces and be explicit about the limitations. Never claim simulated success proves real integration.
+- Implement the minimum integrated code using existing router/schema/service/session/auth/error conventions.
+- Verify the successful behaviour via project-supported test client or real safe local service; verify one meaningful failure, boundary or permission condition, and persisted effect when relevant.
+- Write/run a small focused automated test when it improves feedback now. Do not wait for manual user acceptance to start tests.
+- Correct routine failures without approval (up to three evidence-based attempts at the same blocker), rerun the affected check, and leave app working.
+- Report Built / Decision and why / Exact verification and result / Next milestone with changed paths. Do not require `go` to continue a routine stage. If subagent execution is single-shot, record milestone evidence and include each in the final report.
+- When external services/unknown DB/auth prevent direct integration, use permitted isolated fixtures or test interfaces and be explicit about the limitations. Never claim simulated success proves real integration.
 
 ## 4. Correctness and future-proof boundaries
 
@@ -37,21 +37,25 @@ When external services/unknown DB/auth prevent direct integration, use permitted
 - Do not introduce another abstraction just because later versions might need it. Keep public contracts and persisted invariants stable where possible, and explicitly name a known future migration risk rather than masking it.
 - New database migrations or changes to existing public API contracts: propose for approval before executing. Safe schema initialization of a verified disposable DB through supported dev tooling is different from modifying the product schema.
 
+### Permission-efficient verification
+
+For local startup and manual verification, follow CLAUDE.md "Permission-friendly tool execution". Run separate, readable Bash calls for startup, one literal localhost HTTP target per check, and focused tests. Never assemble a multi-stage shell script or variable-driven curl loop just to save tool calls. Respect all hooks; if a call is blocked, simplify the allowed command instead of bypassing the guard. Verify the database target before any migration/seed or write and never weaken permissions to accelerate the demo.
+
 ## 5. Verification and manual acceptance
 
 Prefer focused tests that exercise the real API boundary and data effects; match repo test fixtures. Run one check, then nearby checks. Never weaken assertions, bypass auth or skip a failing test. Report command/output or observed request/status, including gaps. Do not describe a smoke check as a formal saved test.
 
-If allowed and helpful, start the app on `127.0.0.1` using the project's documented safe **local/throwaway** DB strategy and verify docs/openapi endpoints. Do not install packages, read `.env*` secrets, use unknown or remote DB or access external services without consent. Never insist on a running persistent Swagger server if the environment prevents it and focused in-process verification is possible.
+If allowed and helpful, start the app on 127.0.0.1 using the project's documented safe local/throwaway DB strategy and verify docs/openapi endpoints. Do not install packages, read .env* secrets, use unknown or remote DB or access external services without consent. Never insist on a running persistent Swagger server if the environment prevents it and focused in-process verification is possible.
 
 For the human, provide **MANUAL ACCEPTANCE — WHY / DO / EXPECT**:
+
 - Exact observed local app/docs URL or state that it isn't available.
 - Actual DB engine/location/seed state used, if relevant.
 - How to obtain a permitted local test user/token, which login/Authorize step to use, or precisely why auth is blocked. Never make up credentials.
 - Which Swagger endpoint to expand, Try it out, exact JSON/parameters and record IDs from safe test data, Execute, the observed status/response and persisted effect.
 - One meaningful invalid/unauthorized/conflict case with observed result.
 - Stop/restart command if a server was started.
-
-If Swagger is not supported, adapt to the project's real test interface. Mark unverified expectations as expectations, **not observations**.
+- If Swagger is not supported, adapt to the project's real test interface. Mark unverified expectations as expectations, not observations.
 
 ## 6. Decisions, blockers and reporting
 
@@ -59,17 +63,15 @@ Make routine implementation calls independently. Escalate only: material API/dat
 
 Final output:
 
-```
-Feature / scope achieved:
-Architecture: decision, alternative, reason, future invariant preserved:
-Milestone 1: behaviour -> observed check/result:
-Milestone 2: behaviour -> observed check/result:
-[Milestone 3 if relevant]
-Changed paths:
-Tests: exact commands and outcomes, including failures/skips:
-Manual acceptance: full WHY / DO / EXPECT steps:
-Deferred v2+: and known migration or tech-debt risk:
-Needs decision / blocked / not exercised:
-```
+- **Feature / scope achieved:**
+- **Architecture:** decision, alternative, reason, future invariant preserved:
+- **Milestone 1:** behaviour -> observed check/result:
+- **Milestone 2:** behaviour -> observed check/result:
+- **[Milestone 3 if relevant]**
+- **Changed paths:**
+- **Tests:** exact commands and outcomes, including failures/skips:
+- **Manual acceptance:** full WHY / DO / EXPECT steps:
+- **Deferred v2+:** and known migration or tech-debt risk:
+- **Needs decision / blocked / not exercised:**
 
 The human should be able to inspect the diff and accurately explain why each important change was made. Do not write their explanations or decisions on their behalf.
