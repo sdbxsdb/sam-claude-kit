@@ -15,7 +15,7 @@ The order is fixed: **implement, user confirms the behaviour, formal tests, revi
 
 ## 1. Explore (agent)
 
-If the code is not already understood, start the `learn-codebase` agent right away with the feature description and ask for its short report: the entry point, the main request flow of the closest existing feature, the conventions to follow (validation and error style, session and transaction handling, the auth dependency), how to start the app (command, port, docs URL), how the database is chosen and whether a seed script or documented development credentials exist, and how to run the existing tests. It is read-only and budgeted at about 10 minutes. It never starts the app or runs tests. It writes no repository map or rules file. While it runs, interpret the request. Do not explore the code yourself and do not repeat files it already reported.
+If the code is not already understood, start the `learn-codebase` agent right away with the feature description and ask for its short report, starting with **EXISTING RULES & CONFLICTS** (the project's own instruction files, rules, agents and skills that apply, any conflicts, and confirmation they were preserved), then the entry point, the main request flow of the closest existing feature, the conventions to follow (validation and error style, session and transaction handling, the auth dependency), how to start the app (command, port, docs URL), how the database is chosen and whether a seed script or documented development credentials exist, and how to run the existing tests. It is read-only and budgeted at about 10 minutes. It never starts the app or runs tests. It writes no repository map or rules file. While it runs, interpret the request. Do not explore the code yourself and do not repeat files it already reported.
 
 ## 2. Frame and decide
 
@@ -32,6 +32,8 @@ Decision: <the one or two choices that matter, each with the realistic alternati
 
 A feature is substantial when it changes more than one layer (for example a stored field and an endpoint) or touches more than about four files. Keep the block short: it is how the user sees and can explain the important decisions.
 
+If the exploration reported a conflict between existing instructions, or between the toolkit and the project, that affects this feature, put it to the user with the paths, the options and your recommendation before implementing; do not pick a side quietly. A conflict that does not touch this feature goes in the report only. Never have any agent overwrite or edit a project's instruction files unless the user asks.
+
 Ask the user only when two readings would change the API contract, data model, security, or data integrity, or the scope materially. Ask one batched question with your recommended default. For everything else, state the assumption and continue. If the user is not answering (or the session is non-interactive), proceed on your recommended default and say so.
 
 ## 3. Implement (agent)
@@ -40,7 +42,7 @@ Start the `implement-feature` agent with a self-contained brief:
 
 - **Phase: implement.** It writes all the application code, verifies the real behaviour internally (test client or the running service, on throwaway data), fixes basic problems it finds, and does not write formal tests;
 - the feature, the assumptions, the decisions, the v1 scope and the exclusions;
-- the exploration findings that matter: file paths, the closest existing implementation, conventions, the auth dependency, fixtures, how to start the app, and the test commands;
+- the exploration findings that matter, with each convention's label from the report (project rule, observed pattern, or assumption): the paths of the project instruction files that govern the files it will edit (it reads them itself), the conflicts and what was decided, file paths, the closest existing implementation, conventions, the auth dependency, fixtures, how to start the app, and the test commands;
 - the constraints: follow the repository's conventions and change as little as the feature needs, preserve auth, error handling, and transactions, no new dependencies or unrelated refactors, and no commit;
 - the report format it must return (internal verification with real status codes including failure cases, the acceptance-server state with its evidence, and, for the final milestone, the two walkthrough sections), and an instruction to report `NEEDS DECISION` rather than guessing on anything from the stop-and-ask list or on a material architecture or scope choice.
 

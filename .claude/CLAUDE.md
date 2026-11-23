@@ -31,7 +31,7 @@ Rules for routing:
 
 **The agents do the work.**
 
-- `learn-codebase`: read-only exploration (Read, Grep, Glob only). Reports the entry point, the main request flow, the conventions to follow, how to start the app, and how to run its tests. It writes no repository map or rules file.
+- `learn-codebase`: read-only exploration (Read, Grep, Glob only). First reports the project's existing instruction files, rules, agents, and skills and any conflicts between them or with this kit (EXISTING RULES & CONFLICTS), then the entry point, the main request flow, the conventions to follow (labelled as project rule, observed pattern, or assumption), how to start the app, and how to run its tests. It writes no repository map or rules file.
 - `implement-feature`: writes all the application code, in small milestones for a substantial feature. It verifies the behaviour internally with realistic requests, then makes the running app ready for the person's manual acceptance test in the Swagger UI (on throwaway data, with a verified server) and writes the step-by-step walkthrough. After the person confirms the behaviour, it writes and runs the formal tests.
 - `review`: independent read-only review (Read, Grep, Glob only) of correctness, security, API compatibility, data integrity, and integration with existing conventions. It reports genuine defects, not style. The orchestrator collects the diff and pastes it in.
 - `fix-failure`: root-causes a failure and makes the smallest fix.
@@ -47,7 +47,7 @@ The Roles section describes the main conversation. An agent follows its own inst
 ## Workflow
 
 1. **Understand first.** Read the entry point, one representative feature end to end (route, schema, service/data access, test), and the test setup before editing. Read only files relevant to the task, about 10 in total, and stop once the decision is supported. Do not survey the whole repo.
-2. **Follow the codebase.** Its naming, folder layout, error shape, dependency injection, and test style win over general preference. Copy the nearest existing implementation.
+2. **Follow the codebase.** Explicit project instructions (a nested instruction file over the root one for its directory, `.claude/rules/`) come first, then the patterns in the code, then this kit's defaults. Its naming, folder layout, error shape, dependency injection, and test style win over general preference. Copy the nearest existing implementation. Never overwrite or edit the project's instruction files, agents, or skills unless asked. Report a conflict between instructions, or between them and this kit, with the file paths; do not settle it quietly.
 3. **Ambiguity.** The request may be underspecified. State assumptions in 3-6 bullets and continue. Ask at most one batched question, only when two readings change the API contract, data model, or security, and give your recommended default. Do not wait for an answer on low-risk details.
 4. **Decide independently.** Inside the agreed scope, choose and proceed. Do not ask permission for ordinary edits, reads, or test runs.
 5. **Smallest working v1.** Deliver the core path first, then validation and failure cases. List what is deliberately deferred.

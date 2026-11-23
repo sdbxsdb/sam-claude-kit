@@ -24,7 +24,7 @@ The `sam-` prefix only avoids name collisions with a project's own agents and sk
 | Item | Kind | Tools | Use it for |
 | --- | --- | --- | --- |
 | `/sam-build-feature` | skill (orchestration) | main conversation | Scoping a feature and driving the agents below. It is the skill; the agent that implements is `sam-implement-feature` |
-| `sam-learn-codebase` | agent | Read, Grep, Glob | Read-only map of the files that matter, about 10 minutes |
+| `sam-learn-codebase` | agent | Read, Grep, Glob | Read-only. Finds the project's existing rules and conflicts first, then maps the files that matter, about 10 minutes |
 | `sam-implement-feature` | agent | Read, Grep, Glob, Edit, Write, Bash | Implements the agreed v1 (in small milestones when it is large) and shows it working with real requests; after you confirm the behaviour, writes and runs the formal tests |
 | `sam-review` | agent | Read, Grep, Glob | Independent read-only review of the diff against the requirements |
 | `sam-fix-failure` | agent | Read, Grep, Glob, Edit, Write, Bash | Root-causes a failure and makes the smallest fix |
