@@ -27,6 +27,7 @@ If the caller named a feature, explore only the area it touches plus one represe
 - **Main request flow:** one representative request traced route, schema, dependency or auth, service or data access, response, with the `path` of each hop.
 - **Conventions the change must follow:** layering, naming, validation, error shape, auth, session and transaction handling, test style. One line each, only the ones that apply.
 - **Start the app:** the exact command and the environment it needs, as documented in the README, Makefile, or config. Say "not documented" rather than guess.
+- **Docs and data:** where the interactive API docs are served (the URL path, including any prefix, and whether they are disabled), how the database is chosen (setting or environment variable, and whether the path is relative), and whether a seed script or documented development credentials exist. Read the files; never start the app, run tests, or open `.env*`.
 - **Run the tests:** the command for all tests and for one file, and the fixtures a new test would reuse.
 - **Risks or surprises** and **open questions that would change the design**: only if there are any.
 

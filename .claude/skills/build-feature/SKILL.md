@@ -1,6 +1,6 @@
 ---
 name: build-feature
-description: Use when the user asks to build, add, implement, create, or extend a feature, endpoint, flow, or data write, gives a task, requirement, ticket, or spec to implement, or says here is the task, in a Python/FastAPI service. Orchestrates the whole job in the main conversation. It scopes the work and decides trade-offs with the user, has the `implement-feature` agent build it in small milestones and demonstrate the running behaviour, stops once for the user to confirm the behaviour, then has the formal tests written, an independent `review` run, and corrections made through `implement-feature` or `fix-failure`. Uses `learn-codebase` for exploration. The user never needs to name it or any agent.
+description: Use when the user asks to build, add, implement, create, or extend a feature, endpoint, flow, or data write, gives a task, requirement, ticket, or spec to implement, or says here is the task, in a Python/FastAPI service. Orchestrates the whole job in the main conversation. It scopes the work and decides trade-offs with the user, has the `implement-feature` agent build it in small milestones, verify it internally, and get the running app ready for a manual test, stops once with a step-by-step Swagger UI walkthrough for the user to confirm the behaviour, then has the formal tests written, an independent `review` run, and corrections made through `implement-feature` or `fix-failure`. Uses `learn-codebase` for exploration. The user never needs to name it or any agent.
 ---
 
 # Orchestrate a feature
@@ -15,7 +15,7 @@ The order is fixed: **implement, user confirms the behaviour, formal tests, revi
 
 ## 1. Explore (agent)
 
-If the code is not already understood, start the `learn-codebase` agent right away with the feature description and ask for its short report: the entry point, the main request flow of the closest existing feature, the conventions to follow (validation and error style, session and transaction handling, the auth dependency), how to start the app, and how to run the existing tests. It is read-only and budgeted at about 10 minutes. It writes no repository map or rules file. While it runs, interpret the request. Do not explore the code yourself and do not repeat files it already reported.
+If the code is not already understood, start the `learn-codebase` agent right away with the feature description and ask for its short report: the entry point, the main request flow of the closest existing feature, the conventions to follow (validation and error style, session and transaction handling, the auth dependency), how to start the app (command, port, docs URL), how the database is chosen and whether a seed script or documented development credentials exist, and how to run the existing tests. It is read-only and budgeted at about 10 minutes. It never starts the app or runs tests. It writes no repository map or rules file. While it runs, interpret the request. Do not explore the code yourself and do not repeat files it already reported.
 
 ## 2. Frame and decide
 
@@ -38,42 +38,47 @@ Ask the user only when two readings would change the API contract, data model, s
 
 Start the `implement-feature` agent with a self-contained brief:
 
-- **Phase: implement.** It writes all the application code, exercises the real behaviour (the running service where permitted, on a throwaway database, with realistic requests), fixes basic problems it finds, and does not write formal tests;
+- **Phase: implement.** It writes all the application code, verifies the real behaviour internally (test client or the running service, on throwaway data), fixes basic problems it finds, and does not write formal tests;
 - the feature, the assumptions, the decisions, the v1 scope and the exclusions;
 - the exploration findings that matter: file paths, the closest existing implementation, conventions, the auth dependency, fixtures, how to start the app, and the test commands;
 - the constraints: follow the repository's conventions and change as little as the feature needs, preserve auth, error handling, and transactions, no new dependencies or unrelated refactors, and no commit;
-- the report format it must return (observed behaviour with real status codes, including failure cases, and how the user can try it), and an instruction to report `NEEDS DECISION` rather than guessing on anything from the stop-and-ask list or on a material architecture or scope choice.
+- the report format it must return (internal verification with real status codes including failure cases, the acceptance-server state with its evidence, and, for the final milestone, the two walkthrough sections), and an instruction to report `NEEDS DECISION` rather than guessing on anything from the stop-and-ask list or on a material architecture or scope choice.
 
 For a substantial feature, brief one milestone at a time, in order, adding "Milestone N of M: <name>" and what earlier milestones already did. Each milestone returns with its own observed behaviour; give the short progress update and go straight to the next. No approval is needed between milestones. Only after the last milestone, once the core path works end to end, go to step 4. A small feature is a single brief.
 
-Exercising the behaviour is expected: the agent starts the service when it is permitted, sends the relevant requests, shows the actual status codes and responses (success and meaningful failures), fixes basic problems, and runs the existing tests for regressions. If it cannot start or reach the service, its report says what it could not run and why. Pass that on; never describe behaviour as verified when it was not exercised. In an interactive session, run it in the background if the tool supports that, so the user can keep talking or redirect while it works; otherwise wait. Never start a second writing agent on the same files while it runs.
+Verifying the behaviour internally is expected: the agent drives the app with the test client or another suitable mechanism on throwaway data, checks the success and the meaningful failure cases, fixes basic problems, and runs the existing tests for regressions. For the final milestone (or a small feature) the brief must also say: **make the app ready for manual acceptance**, and return the two ready-to-paste sections, **WHAT I BUILT** and **MANUAL ACCEPTANCE TEST — SWAGGER UI**, built from what it observed. In that brief include how to start the app, the docs URL, how the database is chosen, and the auth notes from the exploration report, plus the safety limits: bind to `127.0.0.1`, use throwaway data only, run no migration and write nothing in a database it did not create, and never use or print credentials from `.env*` or real accounts. For a project that is not FastAPI, say so and ask for the walkthrough in that project's real interface. If it cannot start or reach the service, its report says `USER ACTION NEEDED` or `BLOCKED` and why. Pass that on; never describe the app as ready when it was not verified. Earlier milestones return the short report and get the short progress update; the walkthrough comes only once, at the checkpoint. In an interactive session, run the agent in the background if the tool supports that, so the user can keep talking or redirect while it works; never start a second writing agent on the same files while it runs.
 
 If it reports `NEEDS DECISION`, or you see a material architecture or scope choice, put it to the user in a few lines: the decision, the realistic options, and your recommendation. Keep other independent work going where you can. Routine implementation choices are not decisions to escalate.
 
 ## 4. Checkpoint: the user confirms the behaviour
 
-When implementation returns, stop and end your turn with this short message. Do not start formal tests.
+When implementation returns, stop and end your turn with the message below. Do not start formal tests. The user will test by hand in the Swagger UI, so the walkthrough is the message. Put nothing before **WHAT I BUILT** except one line naming the feature.
 
-```
-Implemented: <feature, one line>
-What it does: <2-3 bullets>
-Try it: <the exact requests or commands from the agent's report, with expected results>
-Observed: <the real requests, status codes, and responses the agent saw, including the failure cases; or what it could not exercise and why. No formal tests exist yet>
-Assumptions to confirm: <only the ones that matter>
-Does it behave as you expect? Tell me what to change, or say "go" and the agents will write and run the formal tests, then review.
-```
+1. **WHAT I BUILT**: the agent's section, short and specific.
+2. **MANUAL ACCEPTANCE TEST — SWAGGER UI**: the agent's section, pasted in full and unchanged, as the most prominent part of the message: Open, Authenticate, Test data, Test cases, Expected results, Failure cases, Final confirmation, and how to stop the server.
+3. **Verified internally:** two or three lines: what the agent checked in-process and the result of the existing tests. If anything could not be exercised, say so here in one line.
+4. **Assumptions to confirm:** only the ones that matter.
+5. **YOUR DECISION**
+   - If everything matches the requirement, reply `go`.
+   - If something is incorrect, tell me exactly what needs changing.
+   - No formal tests or independent review until you approve.
+
+Rules for this message:
+- The walkthrough is for someone using the Swagger UI. It gives no `curl` commands, and no logs, diffs, or technical summary above it. If the agent's walkthrough contains `curl` instructions, or is missing a part, or has a URL, credential, ID, status, or value you cannot find in the agent's report, do not send it: send it back to the `implement-feature` agent once to fix. Never fill a gap yourself.
+- The server status comes from what the agent observed. If your own permissions allow one localhost request to the docs URL, check it just before you send the message, and say if it no longer answers. Otherwise say it was verified by the agent at the time it reports. If the agent reported `USER ACTION NEEDED` or `BLOCKED`, put that first in the walkthrough in plain words with the exact safe step, and do not write that Swagger is ready.
+- If the project has no Swagger UI, the walkthrough is the same sections for the interface it really has.
 
 This is the single checkpoint. It is not approval of each edit, and the agent must not be interrupted for approvals while it works. Skip the pause only if the user already said to run straight through.
 
-In a time-boxed session, keep the checkpoint to four lines, with the `Try it` command, and say how much time is left so the user can confirm quickly. Aim to reach it by about the 30-35 minute mark so tests and review still fit.
+In a time-boxed session, say how much time is left, and aim to reach the checkpoint by about the 30-35 minute mark so tests and review still fit.
 
 ## 5. Adjustments
 
-If the user asks for changes, send them to the `implement-feature` agent (phase: implement) with a self-contained brief: the change, what must stay true, and the files involved. When it returns, report what changed in two lines and ask only whether to move on to tests; if the user already said to proceed once the change is made, go straight to step 6. A change that alters the API contract, data model, or security is a new decision: say so and put it to the user.
+If the user asks for changes, send them to the `implement-feature` agent (phase: implement) with a self-contained brief: the change, what must stay true, and the files involved. Tell it that the running server must reflect the change (restart it; it has no auto-reload) and to refresh the walkthrough. When it returns, give the checkpoint message again in full (step 4) and wait for `go`; if the user already said to proceed once the change is made, go straight to step 6. A change that alters the API contract, data model, or security is a new decision: say so and put it to the user.
 
 ## 6. Formal tests (agent)
 
-Only after the user confirms. Start the `implement-feature` agent again with **Phase: formal tests**, a note that the behaviour is confirmed and must not change, the behaviours and cases to cover (happy path, validation failure, unauthenticated or forbidden with ownership or tenant isolation when auth exists, not found or conflict, one data-integrity edge case, list bounds), the test commands, and the report format. For a failure that is not obvious, use the `fix-failure` agent. Do not run `implement-feature` and `fix-failure` on the same files at once.
+Only after the user confirms. Start the `implement-feature` agent again with **Phase: formal tests**, a note that the behaviour is confirmed and must not change, the acceptance server's PID, port, and temporary directory to stop and clean up, the behaviours and cases to cover (happy path, validation failure, unauthenticated or forbidden with ownership or tenant isolation when auth exists, not found or conflict, one data-integrity edge case, list bounds), the test commands, and the report format. For a failure that is not obvious, use the `fix-failure` agent. Do not run `implement-feature` and `fix-failure` on the same files at once.
 
 ## 7. Review (agent)
 

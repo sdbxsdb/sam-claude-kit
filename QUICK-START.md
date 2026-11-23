@@ -43,8 +43,8 @@ Just describe what you want built (the build workflow starts by itself). The exp
 
 1. **Explore.** The orchestrator starts `sam-learn-codebase` with your request. It does not read the code itself.
 2. **Frame and decide.** You get a short block: feature, assumptions, v1 scope, what is excluded, and the one or two decisions that matter with a recommendation. It asks only when two readings change the API contract, data model, security, or scope; otherwise it states its assumption and proceeds. Answer, or redirect, at any time.
-3. **Implement.** The orchestrator briefs `sam-implement-feature`, which writes the code (in small milestones for a large feature) and exercises it: it starts the app where permitted, sends realistic requests, shows the real status codes including failure cases, fixes basic problems, and checks the existing tests still pass. If it cannot run the service it says what it could not exercise. It writes no formal tests yet.
-4. **Checkpoint (the one planned pause).** You get what was built, 2-3 exact ways to try it, and the observed responses. Try it, then either describe changes or say "go". This is not approval of each edit.
+3. **Implement.** The orchestrator briefs `sam-implement-feature`, which writes the code (in small milestones for a large feature) and verifies it internally with the test client (success and failure cases, existing tests still pass), then gets the app ready for you: it runs it on `127.0.0.1` against a throwaway database, seeds test data, works out authentication, confirms the Swagger docs page responds and lists the new endpoints, and runs each walkthrough case itself to record the real results. If it cannot start the server it says so and gives you the one safe step; it never claims Swagger is ready unless it checked. It writes no formal tests yet.
+4. **Checkpoint (the one planned pause).** You get **WHAT I BUILT**, then **MANUAL ACCEPTANCE TEST — SWAGGER UI** (the URL to open, how to authorise, test data, numbered steps with the exact status and values to expect, a failure case, and a checklist), then **YOUR DECISION**. Follow the steps in the Swagger UI, then either describe changes or say "go". This is not approval of each edit.
 5. **Adjust.** Changes you ask for go back to `sam-implement-feature`. You are asked only whether to move on.
 6. **Formal tests.** Only after you confirm, `sam-implement-feature` writes and runs the tests (happy path, validation, auth and isolation, not found or conflict, one integrity edge case, list bounds).
 7. **Review.** For a new endpoint, a write, or anything touching auth, the orchestrator collects `git diff` and sends it with the requirements to `sam-review`. Trivial edits skip this.
@@ -80,7 +80,7 @@ Read the diff (`git diff --stat`, then the hunks). Reject new dependencies, new 
 | 0-10 | Explore | `sam-learn-codebase` maps the repo while you read the requirement and prepare questions |
 | 10-15 | Decide | You choose between the options the orchestrator shows; v1 scope and exclusions are fixed |
 | 15-35 | Implement | `sam-implement-feature` builds and demonstrates; you stay free to answer questions |
-| about 35 | Checkpoint | A four-line message with how to try it; you confirm or ask for changes, briefly |
+| about 35 | Checkpoint | The Swagger walkthrough; you follow it, then confirm or ask for changes |
 | 35-52 | Tests and review | Formal tests, then `sam-review`, then corrections and reruns |
 | 52-60 | Verify and discuss | The orchestrator confirms tests and summarises; you explain decisions, tests, and limits |
 
