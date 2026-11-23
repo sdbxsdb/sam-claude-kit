@@ -14,7 +14,7 @@ Copy the nearest existing test: runner, fixtures, client, naming, and location. 
 - Database writes, constraints, and transactions: against the repo's real test database strategy when it is cheap, not a different engine.
 - Spend tests where failure costs most. Skip cases the change cannot affect.
 
-## Choose the cases (aim for 5-8, not more)
+## Choose the cases according to feature risk (no arbitrary count)
 
 For a new endpoint:
 
@@ -44,4 +44,4 @@ Run one new test, then its file, then the neighbouring test directory. Run the f
 
 ## Output
 
-Before writing tests, give a short plan: layer, the cases above that apply, which doubles, and what is deliberately not tested. Then write the tests and run them.
+Write focused tests alongside implementation when they add fast feedback; no manual-approval gate. Before writing tests, give a brief plan: layer, the cases above that apply, which doubles, and what is deliberately not tested. Then write the tests and run them.

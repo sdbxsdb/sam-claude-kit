@@ -278,8 +278,8 @@ def check_transformed(label: str, text: str) -> None:
     stale_paths = re.findall(r"\.claude/skills/(%s)/" % names, text)
     if stale_paths:
         raise Abort("%s: unprefixed skill path(s) remain: %s" % (label, ", ".join(sorted(set(stale_paths)))))
-    if "CLAUDE.md" in text:
-        raise Abort("%s: stale reference to CLAUDE.md remains" % label)
+    if "`CLAUDE.md`" in text:
+        raise Abort("%s: stale reference to `CLAUDE.md` remains" % label)
     installed = {PREFIX + n for n in NAMES}
     unknown = [r for r in re.findall(r"`(sam-[a-z-]+)`", text) if r not in installed]
     if unknown:

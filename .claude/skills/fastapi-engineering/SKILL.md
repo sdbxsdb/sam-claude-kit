@@ -14,7 +14,7 @@ Find the app factory, how routers are included, shared dependencies, the Pydanti
 ## Endpoints
 
 - `async def` runs on the event loop. Blocking code inside it (sync DB driver, `requests`, file reads, `time.sleep`) stalls every request. A plain `def` runs in a threadpool. Use `async def` only when the body awaits async I/O, and match what the neighbouring routes do with the DB.
-- Declare `response_model` and `status_code` on every route. Use `201` for create, `204` for delete with no body, `404` for missing, `409` for conflict or uniqueness violation, `422` for validation (automatic), `401` unauthenticated, `403` authenticated but not permitted.
+- Follow the neighbouring routes for `response_model` and `status_code`; explicitly declare them when adding a contract and consistent with the codebase. Typical defaults when the existing API has no established convention: use `201` for create, `204` for delete with no body, `404` for missing, `409` for conflict or uniqueness violation, `422` for validation (automatic), `401` unauthenticated, `403` authenticated but not permitted.
 - Keep request, response, and DB models separate so a column change cannot leak into the contract or expose internal fields. In a response model, whitelist fields.
 - Put bounds in the request model: list `limit` with `ge=1, le=<max>`, `offset` or cursor, string `max_length`, numeric ranges. Never return an unbounded list.
 - Use `APIRouter` with the same prefix and tags convention as the neighbours. Register the router where the others are registered.
@@ -51,7 +51,7 @@ Find the app factory, how routers are included, shared dependencies, the Pydanti
 - Read-modify-write that can race: `with_for_update()` or a version column. Idempotent create: a unique key plus `ON CONFLICT`, or catch the conflict.
 - Avoid N+1: `selectinload` or `joinedload`, or one query with `IN`. Paginate with a stable sort that has a unique tiebreaker.
 - Never build SQL by string formatting. Use bound parameters or the ORM.
-- No migrations or schema changes without asking.
+- Propose a material product-schema change or migration before executing it; safe initialization of a verified disposable development DB may proceed under the main safety rules.
 
 ## Testing
 
