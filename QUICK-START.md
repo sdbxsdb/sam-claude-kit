@@ -25,7 +25,7 @@ The `sam-` prefix only avoids name collisions with a project's own agents and sk
 | --- | --- | --- | --- |
 | `/sam-build-feature` | skill (orchestration) | main conversation | Scoping a feature and driving the agents below. It is the skill; the agent that implements is `sam-implement-feature` |
 | `sam-learn-codebase` | agent | Read, Grep, Glob | Read-only map of the files that matter, about 10 minutes |
-| `sam-implement-feature` | agent | Read, Grep, Glob, Edit, Write, Bash | Implements the agreed v1 and smoke-checks it; after you confirm the behaviour, writes and runs the formal tests |
+| `sam-implement-feature` | agent | Read, Grep, Glob, Edit, Write, Bash | Implements the agreed v1 (in small milestones when it is large) and shows it working with real requests; after you confirm the behaviour, writes and runs the formal tests |
 | `sam-review` | agent | Read, Grep, Glob | Independent read-only review of the diff against the requirements |
 | `sam-fix-failure` | agent | Read, Grep, Glob, Edit, Write, Bash | Root-causes a failure and makes the smallest fix |
 | `/sam-test-strategy`, `/sam-fastapi-engineering`, `/sam-python-engineering` | skills | n/a | Reference the implementation agent reads when it needs them |
@@ -43,8 +43,8 @@ Just describe what you want built (the build workflow starts by itself). The exp
 
 1. **Explore.** The orchestrator starts `sam-learn-codebase` with your request. It does not read the code itself.
 2. **Frame and decide.** You get a short block: feature, assumptions, v1 scope, what is excluded, and the one or two decisions that matter with a recommendation. It asks only when two readings change the API contract, data model, security, or scope; otherwise it states its assumption and proceeds. Answer, or redirect, at any time.
-3. **Implement.** The orchestrator briefs `sam-implement-feature`, which writes the code and smoke-checks it (the app starts, the new behaviour works once or twice, existing tests still pass). It writes no formal tests yet.
-4. **Checkpoint (the one planned pause).** You get what was built, 2-3 exact ways to try it, and the smoke results. Try it, then either describe changes or say "go". This is not approval of each edit.
+3. **Implement.** The orchestrator briefs `sam-implement-feature`, which writes the code (in small milestones for a large feature) and exercises it: it starts the app where permitted, sends realistic requests, shows the real status codes including failure cases, fixes basic problems, and checks the existing tests still pass. If it cannot run the service it says what it could not exercise. It writes no formal tests yet.
+4. **Checkpoint (the one planned pause).** You get what was built, 2-3 exact ways to try it, and the observed responses. Try it, then either describe changes or say "go". This is not approval of each edit.
 5. **Adjust.** Changes you ask for go back to `sam-implement-feature`. You are asked only whether to move on.
 6. **Formal tests.** Only after you confirm, `sam-implement-feature` writes and runs the tests (happy path, validation, auth and isolation, not found or conflict, one integrity edge case, list bounds).
 7. **Review.** For a new endpoint, a write, or anything touching auth, the orchestrator collects `git diff` and sends it with the requirements to `sam-review`. Trivial edits skip this.
@@ -61,7 +61,7 @@ Ask your question or change direction in the same session. The orchestrator is n
 
 ```text
 Use the sam-learn-codebase agent to map the files relevant to <task>.
-Use the sam-implement-feature agent to implement <agreed change>. Phase: implement (smoke checks only). Scope: <v1>. Test command: <cmd>.
+Use the sam-implement-feature agent to implement <agreed change>. Phase: implement (exercise the behaviour, no formal tests). Scope: <v1>. Test command: <cmd>.
 Use the sam-implement-feature agent. Phase: formal tests. The behaviour is confirmed. Cover: <cases>. Test command: <cmd>.
 Use the sam-review agent on this diff: <paste git diff> Requirements: <paste>
 Use the sam-fix-failure agent on this failure: <paste the error>
@@ -79,7 +79,7 @@ Read the diff (`git diff --stat`, then the hunks). Reject new dependencies, new 
 | --- | --- | --- |
 | 0-10 | Explore | `sam-learn-codebase` maps the repo while you read the requirement and prepare questions |
 | 10-15 | Decide | You choose between the options the orchestrator shows; v1 scope and exclusions are fixed |
-| 15-35 | Implement | `sam-implement-feature` builds and smoke-checks; you stay free to answer questions |
+| 15-35 | Implement | `sam-implement-feature` builds and demonstrates; you stay free to answer questions |
 | about 35 | Checkpoint | A four-line message with how to try it; you confirm or ask for changes, briefly |
 | 35-52 | Tests and review | Formal tests, then `sam-review`, then corrections and reruns |
 | 52-60 | Verify and discuss | The orchestrator confirms tests and summarises; you explain decisions, tests, and limits |

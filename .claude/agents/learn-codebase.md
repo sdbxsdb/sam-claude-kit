@@ -21,12 +21,13 @@ If the caller named a feature, explore only the area it touches plus one represe
 6. Auth: the shared `Depends` for the current user, permission or tenant checks, and which routes use them. Record how the existing code enforces auth. Do not judge or redesign it.
 7. Tests: location, `conftest.py` fixtures, client, DB strategy, dependency overrides, and how to run one test (look in `Makefile`, `pyproject.toml`, CI config, or README).
 
-## Report (under 30 lines)
+## Report (under 25 lines, plain bullets)
 
-- Commands: run app, run one test, run all tests, lint.
-- The representative feature and its files, as `path` with one line each.
-- Patterns the new feature must follow: layering, naming, validation, errors, auth, sessions, test style.
-- Risks and surprises relevant to the task: routes without auth, inconsistent patterns, raw SQL, blocking calls in `async def`.
-- Open questions that would change the design, if any.
+- **Entry point:** `path`, how the app is created, middleware and handlers, where routers are included and their prefixes.
+- **Main request flow:** one representative request traced route, schema, dependency or auth, service or data access, response, with the `path` of each hop.
+- **Conventions the change must follow:** layering, naming, validation, error shape, auth, session and transaction handling, test style. One line each, only the ones that apply.
+- **Start the app:** the exact command and the environment it needs, as documented in the README, Makefile, or config. Say "not documented" rather than guess.
+- **Run the tests:** the command for all tests and for one file, and the fixtures a new test would reuse.
+- **Risks or surprises** and **open questions that would change the design**: only if there are any.
 
-Do not design the feature.
+Report what exists. Do not write or propose a repository map, a rules file, or a design for the feature.

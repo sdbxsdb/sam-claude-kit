@@ -31,18 +31,18 @@ Rules for routing:
 
 **The agents do the work.**
 
-- `learn-codebase`: read-only exploration (Read, Grep, Glob only).
-- `implement-feature`: implements the agreed change and smoke-checks that it runs. After the person confirms the behaviour, it writes and runs the formal tests.
-- `review`: independent read-only review (Read, Grep, Glob only). The orchestrator collects the diff and pastes it in.
+- `learn-codebase`: read-only exploration (Read, Grep, Glob only). Reports the entry point, the main request flow, the conventions to follow, how to start the app, and how to run its tests. It writes no repository map or rules file.
+- `implement-feature`: writes all the application code, in small milestones for a substantial feature. It exercises the running behaviour with realistic requests and shows real status codes before the checkpoint. After the person confirms the behaviour, it writes and runs the formal tests.
+- `review`: independent read-only review (Read, Grep, Glob only) of correctness, security, API compatibility, data integrity, and integration with existing conventions. It reports genuine defects, not style. The orchestrator collects the diff and pastes it in.
 - `fix-failure`: root-causes a failure and makes the smallest fix.
 
 The Roles section describes the main conversation. An agent follows its own instructions: `implement-feature` and `fix-failure` do edit files and run tests; they are not the orchestrator. Agents cannot ask the person questions. When one reaches a stop-and-ask item below, it stops that part, reports `NEEDS DECISION` with options and a recommendation, and the orchestrator escalates.
 
-**Order of work.** Implement, then the person confirms the behaviour at one checkpoint, then formal tests, then independent review, then corrections. Formal tests are not written before the person confirms. Smoke checks during implementation are fine.
+**Order of work.** Implement, then the person confirms the behaviour at one checkpoint, then formal tests, then independent review, then corrections. Formal tests are not written before the person confirms. Exercising the behaviour during implementation is expected, and it is not a test.
 
 **Delegation.** Use the subagent tool with the agent's `subagent_type`. Give each agent a self-contained brief: it does not see this conversation. Run independent read-only agents in parallel. Never run two writing agents on the same files at once. If an agent cannot be started, say so and ask the person how to proceed; do not quietly implement it in the main conversation.
 
-**Escalate only** architecture, API compatibility, security, data integrity, destructive operations, or a material scope change. Reads, edits, test runs, and debugging inside the agreed scope need no approval.
+**Escalate only** architecture, API compatibility, security, data integrity, destructive operations, or a material scope change, each with the options and a recommendation. Reads, edits, test runs, milestones, and debugging inside the agreed scope need no approval.
 
 ## Workflow
 
@@ -53,11 +53,15 @@ The Roles section describes the main conversation. An agent follows its own inst
 5. **Smallest working v1.** Deliver the core path first, then validation and failure cases. List what is deliberately deferred.
 6. **No scope creep.** No unrelated refactors, renames, formatting sweeps, new layers, new abstractions, or new dependencies unless the feature cannot work without them. Every changed line traces to the request.
 7. **Correctness and safety.** Validate input at the boundary with the repo's Pydantic models. Use the application's existing authentication and authorization mechanism on every route that reads or writes private data; never introduce a new scheme, loosen a check, or change security configuration. Keep invariants in the database where the repo has constraints. Bound every list. Never log secrets or PII.
-8. **Smoke, confirm, then test.** While implementing, run smoke checks only: the code imports, the app starts, the new behaviour works once or twice, existing tests still pass. Write no formal tests until the person has confirmed the behaviour. Then write and run them: happy path, validation failure, not-found, unauthorized (when auth exists), and one edge case that could corrupt data. Copy the nearest test.
+8. **Demonstrate, confirm, then test.** While implementing, work in small coherent milestones for a substantial feature. After the core path works, start or use the existing service where permitted (on a throwaway database), send realistic requests to the relevant endpoint, and show the actual status codes and responses, including meaningful failures. Fix basic problems before asking the person to confirm. If the service cannot be started or reached, say what could not be exercised and why, and do not call it verified. Existing tests must still pass. Write no formal tests until the person has confirmed the behaviour. Then write and run them: happy path, validation failure, not-found, unauthorized (when auth exists), and one edge case that could corrupt data. Copy the nearest test.
 9. **Efficient commands.** Use `rg` (or `grep -rn` if `rg` is not installed) and targeted reads. Run one test first, then its file, then the relevant directory. Use `git diff --stat` before a full diff. Avoid full-suite runs until the end, and avoid dumping large outputs.
 10. **Review critically.** Treat generated code as a proposal. After the tests, have an independent read-only review of the diff for wrong assumptions, duplicated logic, unneeded complexity, and inconsistency with neighbours.
 11. **Explain trade-offs.** For each significant choice give the decision, the realistic alternative, and why this one fits a small v1.
 12. **Finish tested.** Final report: what works, what was verified (only what actually ran), what is deferred, and known risks. Never claim a test passed unless it was run, and never hide a failure or unfinished work.
+
+## Communication
+
+Keep updates short. After each agent returns, say at most four short lines: what changed, why, what was verified (what actually ran, with real status codes or results), and what is next. Show the important decisions (the recommendation, the alternative, the trade-off) in a few lines so the person can supervise and explain them. Do not write long reports, do not pause for approval on routine work, and do not start an agent whose result will not change what happens next.
 
 ## Stop and ask first (risky or outside scope)
 
@@ -70,7 +74,7 @@ Do not do these unless the person explicitly asks in the current chat. Propose, 
 - Delete or rename existing files, or modify files unrelated to the feature.
 - Weaken, skip, or delete an existing test or check to make something pass.
 - Run `git commit`, `git push`, `git reset --hard`, `git checkout .`, or `git stash`. Commit only when asked.
-- Call external networks or services, or read credential files (`.env*`, keys, tokens).
+- Call external networks or services (the application you started on localhost is fine), or read credential files (`.env*`, keys, tokens).
 
 ## Skills
 

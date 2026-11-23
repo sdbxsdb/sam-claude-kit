@@ -236,7 +236,7 @@ claude                                                       # paste mode: paste
 
 ```text
 Explore only the files relevant to <task> and report the patterns to follow.
-Build <task> as a minimal v1 with smoke checks only, then wait for me to confirm the behaviour before writing tests.
+Build <task> as a minimal v1 and show it working with real requests (no formal tests yet), then wait for me to confirm the behaviour before writing tests.
 Review my diff for correctness and integration only: <paste git diff>
 Find the root cause of this failure and make the smallest fix: <paste error>
 ```

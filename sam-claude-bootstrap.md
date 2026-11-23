@@ -47,7 +47,7 @@ For each significant choice state the decision, the realistic alternative, and w
 1. Restate the feature in 2-3 lines: who calls it, what it reads or writes, what success and failure look like.
 2. Output: `Feature`, `Assumptions`, `In scope`, `Deferred`. Then continue without waiting.
 3. Name the closest existing implementation and the few files to add or change (usually schema, route, service or data function, registration, test). Past about six files, check whether an abstraction crept in.
-4. Implement the core path, then validation and failure handling. Run only smoke checks: the code imports, the app starts, the new behaviour works once or twice, existing tests still pass. Write no formal tests yet.
+4. Implement the core path, then validation and failure handling. Then demonstrate it: run the app where you can, send realistic requests to the relevant endpoint, and show the real status codes, including failure cases. Fix basic problems, check existing tests still pass, and if you cannot run the service say what you could not exercise. Write no formal tests yet.
 5. Stop at one checkpoint: say what you built, give me 2-3 exact ways to try it, and wait. I will confirm the behaviour or ask for changes. Make requested changes, then ask only whether to move on.
 6. Only after I confirm: write the formal tests by copying the nearest existing test (happy path, validation failure, unauthorized, not found or conflict, one data-integrity edge case, list bounds), run each, then the file, then the neighbouring tests, and say what each run proves.
 7. Review your own diff (`git diff --stat`, then the diff) for correctness and integration, fix real defects, and rerun the affected tests.
