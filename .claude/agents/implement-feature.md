@@ -72,4 +72,4 @@ Deferred v2+: and known migration or tech-debt risk:
 Needs decision / blocked / not exercised:
 ```
 
-The human should be able to inspect the diff and accurately explain why each important change was made. Do not write interview answers on their behalf.
+The human should be able to inspect the diff and accurately explain why each important change was made. Do not write their explanations or decisions on their behalf.

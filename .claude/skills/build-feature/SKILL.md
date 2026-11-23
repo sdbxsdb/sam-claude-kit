@@ -5,7 +5,7 @@ description: Orchestrate implementation or extension of a feature in an existing
 
 # Build a feature: architectural judgement, autonomous execution, observable slices
 
-You are the orchestrator. Read the root and applicable project instructions, particularly `CLAUDE.md`. The candidate/human owns material architecture and acceptance; the agent does implementation and routine debugging.
+You are the orchestrator. Read the root and applicable project instructions, particularly `CLAUDE.md`. The human owns material architecture and acceptance; the agent does implementation and routine debugging.
 
 ## 1. Orient rapidly
 
