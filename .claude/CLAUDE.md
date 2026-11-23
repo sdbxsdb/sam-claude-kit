@@ -1,6 +1,6 @@
 # Engineering rules
 
-Rules for working in an existing Python/FastAPI codebase, including a time-boxed engineering session. A working, tested, simple change beats an ambitious unfinished one. The person at the keyboard supervises and must be able to explain every change.
+Rules for working in an existing Python/FastAPI codebase. A working, tested, simple change beats an ambitious unfinished one. The person at the keyboard supervises and must be able to explain every change.
 
 Where the project's own instruction files, rules, agents, or skills conflict with this file on architecture, security, or conventions, the project's win. Nothing here permits weakening an existing security check.
 
@@ -10,7 +10,7 @@ The person talks normally. You choose the agent or workflow from what they ask, 
 
 | The person says (examples, not exact phrases) | You do |
 | --- | --- |
-| "Explore this repo", "learn this codebase", "how is this organised", "explain the architecture", "where does X happen across the code" | Delegate to `learn-codebase` with the question, then relay its report. A question about one named function or file can be answered directly after reading it |
+| "Explore this repo", "learn this codebase", "how is this organised", "explain the architecture", "where does X happen across the code" | Delegate to `learn-codebase` with the question, then relay its report in full. If they also want it running, follow "Explore and run" below. A question about one named function or file can be answered directly after reading it |
 | "Build this", "add / implement / create / extend ...", "here's the task", a pasted requirement, ticket, or spec | Invoke the `build-feature` skill with the Skill tool and follow it. It scopes the work, has `implement-feature` write the code, pauses once for the person to confirm the behaviour, then has the formal tests written and an independent review run. Do not skip it and do not implement yourself |
 | "Review these changes", "review my diff / branch / PR", "is this change OK" | Run `git status --short` and `git diff` yourself, then delegate to `review` with the diff, the paths of new files, and the requirement if known. Relay the findings |
 | "Fix this bug", "this test fails", "investigate this failure or error", a pasted traceback or test output | Delegate to `fix-failure` with the failure text and what you know. Relay what it found, changed, and re-ran |
@@ -23,6 +23,18 @@ Rules for routing:
 - Anything that changes code is a feature or a fix and goes through its agent. Do not make the change yourself because it looks small.
 - If an agent or skill cannot be started, say so in one line and ask how to proceed.
 
+## Explore and run
+
+When the person asks to learn or explore the codebase and also to get it running ("learn this codebase and run it locally"), they want two things in one answer: an understanding of the application, and a working local setup. Never let the second displace the first.
+
+1. **Explain first.** Start `learn-codebase` with the request. It cannot run anything; it returns the architecture overview regardless. The environment work is yours (the main conversation), done after it or alongside it, never delegated to the read-only agent.
+2. **Set up safely.** Use the project's documented commands. Bind to `127.0.0.1`. Use a local SQLite file or a throwaway database you create. If the documented setup would migrate, seed, or write to a database you did not create, or to anything shared or remote, do not run it: report it as `USER ACTION NEEDED` with the one exact step. Do not read `.env*` values into the conversation or print secrets. Keep the setup to what is needed to start the app and check it responds; no unrelated fixes.
+   - **Safe, reversible setup proceeds** where your permissions allow: running from a temporary folder, a throwaway database, `127.0.0.1`, a free port, dependencies already declared by the project. Say in the status what you did.
+   - **A genuine conflict is never overridden to get the app running.** Instructions that contradict each other, or this kit against the project, where the answer changes application behaviour or architecture (the database used, the error shape, the auth scheme, the project layout, the test order, a dependency) are reported with the file paths and your recommendation, and the person decides. Do not edit the project's code, configuration, or instruction files to make setup succeed.
+3. **Answer in this order.** First the agent's EXISTING RULES & CONFLICTS, ARCHITECTURE OVERVIEW, and TRACED REQUEST, passed on in full (trimmed only for repetition, never replaced by a pointer or a one-line summary), with its labels that separate project rules, observed code, and assumptions. Then a separate **LOCAL DEVELOPMENT STATUS**: whether the app is running (`VERIFIED RUNNING`, `NOT RUNNING`, or `PARTIAL`), the exact URLs observed (app and docs), the database and configuration in use and whether you created it, the checks you actually ran with their results, any blockers with the one safe next step, and how to stop it. Then any risks.
+4. **Keep troubleshooting out of the overview.** Setup problems, retries, and environment detail belong only in LOCAL DEVELOPMENT STATUS, in a few lines. If setup fails, still give the full overview.
+5. **No new rule files.** Do not write a repository map, rules file, or notes unless the person asks. If other tooling generates convention notes, leave existing project files exactly as they are, link to them instead of copying, and keep them separate from the architecture report.
+
 ## Roles
 
 **The person decides:** the product requirement, scope, architecture, trade-offs, API compatibility, security, and what is acceptable to deliver. They write no application code.
@@ -31,7 +43,7 @@ Rules for routing:
 
 **The agents do the work.**
 
-- `learn-codebase`: read-only exploration (Read, Grep, Glob only). First reports the project's existing instruction files, rules, agents, and skills and any conflicts between them or with this kit (EXISTING RULES & CONFLICTS), then the entry point, the main request flow, the conventions to follow (labelled as project rule, observed pattern, or assumption), how to start the app, and how to run its tests. It writes no repository map or rules file.
+- `learn-codebase`: read-only exploration (Read, Grep, Glob only). First reports the project's existing instruction files, rules, agents, and skills and any conflicts between them or with this kit (EXISTING RULES & CONFLICTS), then an ARCHITECTURE OVERVIEW (purpose, entry point, layers and what each does, key models and data flow, auth, persistence, error handling, testing), one TRACED REQUEST, the conventions to follow (labelled as project rule, observed pattern, or assumption), and the documented run and test commands. It writes no repository map or rules file.
 - `implement-feature`: writes all the application code, in small milestones for a substantial feature. It verifies the behaviour internally with realistic requests, then makes the running app ready for the person's manual acceptance test in the Swagger UI (on throwaway data, with a verified server) and writes the step-by-step walkthrough. After the person confirms the behaviour, it writes and runs the formal tests.
 - `review`: independent read-only review (Read, Grep, Glob only) of correctness, security, API compatibility, data integrity, and integration with existing conventions. It reports genuine defects, not style. The orchestrator collects the diff and pastes it in.
 - `fix-failure`: root-causes a failure and makes the smallest fix.

@@ -1,6 +1,6 @@
 # Quick start: Sam's Claude Code Toolkit
 
-How to use the toolkit in an existing Python/FastAPI codebase, including a time-boxed development session. Install first (`PORTABLE-SETUP.md` covers every environment; `python3 bootstrap.py` is the installer). If you cannot install files, paste `sam-claude-bootstrap.md`, `MINIMAL-PROMPT.txt`, or `session-prompt.txt`.
+How to use the toolkit in an existing Python/FastAPI codebase. Install first (`PORTABLE-SETUP.md` covers every environment; `python3 bootstrap.py` is the installer). If you cannot install files, paste `sam-claude-bootstrap.md`, `MINIMAL-PROMPT.txt`, or `session-prompt.txt`.
 
 All names below are the installed `sam-` names. A project's own `review` agent or `build-feature` skill is never replaced.
 
@@ -24,7 +24,7 @@ The `sam-` prefix only avoids name collisions with a project's own agents and sk
 | Item | Kind | Tools | Use it for |
 | --- | --- | --- | --- |
 | `/sam-build-feature` | skill (orchestration) | main conversation | Scoping a feature and driving the agents below. It is the skill; the agent that implements is `sam-implement-feature` |
-| `sam-learn-codebase` | agent | Read, Grep, Glob | Read-only. Finds the project's existing rules and conflicts first, then maps the files that matter, about 10 minutes |
+| `sam-learn-codebase` | agent | Read, Grep, Glob | Read-only. Finds the project's existing rules and conflicts first, then explains the architecture and traces one request. If you also ask to run the app, the main conversation does that and reports it separately as LOCAL DEVELOPMENT STATUS |
 | `sam-implement-feature` | agent | Read, Grep, Glob, Edit, Write, Bash | Implements the agreed v1 (in small milestones when it is large) and shows it working with real requests; after you confirm the behaviour, writes and runs the formal tests |
 | `sam-review` | agent | Read, Grep, Glob | Independent read-only review of the diff against the requirements |
 | `sam-fix-failure` | agent | Read, Grep, Glob, Edit, Write, Bash | Root-causes a failure and makes the smallest fix |
@@ -73,20 +73,11 @@ Use the sam-fix-failure agent on this failure: <paste the error>
 
 Read the diff (`git diff --stat`, then the hunks). Reject new dependencies, new layers, edits to unrelated files, changed existing tests, and auth or migration changes you did not ask for. Check that every claimed test run appears in the agent's report with a result line, and that a smoke check is never presented as a test.
 
-## Time-boxed session (about 60 minutes)
-
-| Minutes | Phase | What happens |
-| --- | --- | --- |
-| 0-10 | Explore | `sam-learn-codebase` maps the repo while you read the requirement and prepare questions |
-| 10-15 | Decide | You choose between the options the orchestrator shows; v1 scope and exclusions are fixed |
-| 15-35 | Implement | `sam-implement-feature` builds and demonstrates; you stay free to answer questions |
-| about 35 | Checkpoint | The Swagger walkthrough; you follow it, then confirm or ask for changes |
-| 35-52 | Tests and review | Formal tests, then `sam-review`, then corrections and reruns |
-| 52-60 | Verify and discuss | The orchestrator confirms tests and summarises; you explain decisions, tests, and limits |
+## Keep the scope small
 
 A working, integrated v1 beats completeness. Say what you are cutting.
 
-## Be able to explain (the engineering signals)
+## Be able to explain the change
 
 - **Taste:** the options compared, why the simplest fit won, what was left out.
 - **Agency:** the assumptions made and why no approval was needed.

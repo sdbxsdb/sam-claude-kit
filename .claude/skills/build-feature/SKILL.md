@@ -72,8 +72,6 @@ Rules for this message:
 
 This is the single checkpoint. It is not approval of each edit, and the agent must not be interrupted for approvals while it works. Skip the pause only if the user already said to run straight through.
 
-In a time-boxed session, say how much time is left, and aim to reach the checkpoint by about the 30-35 minute mark so tests and review still fit.
-
 ## 5. Adjustments
 
 If the user asks for changes, send them to the `implement-feature` agent (phase: implement) with a self-contained brief: the change, what must stay true, and the files involved. Tell it that the running server must reflect the change (restart it; it has no auto-reload) and to refresh the walkthrough. When it returns, give the checkpoint message again in full (step 4) and wait for `go`; if the user already said to proceed once the change is made, go straight to step 6. A change that alters the API contract, data model, or security is a new decision: say so and put it to the user.
@@ -109,6 +107,6 @@ Keep it to about 15 lines:
 
 Do not commit unless asked.
 
-## Time-boxed session
+## Keep the scope small
 
-For a session of about 60 minutes: explore for about 10 minutes, implement and reach the checkpoint by about minute 30-35, then tests and review in the remaining time, with the last few minutes for the summary and discussion. A working, integrated v1 beats completeness. Say what you are cutting rather than letting the build run long, and keep the conversation free for the user to answer questions while the agents work.
+A working, integrated v1 beats completeness. Say what you are cutting rather than letting the build run long, and keep the conversation free for the user to answer questions while the agents work.
