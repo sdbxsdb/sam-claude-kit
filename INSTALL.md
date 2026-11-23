@@ -7,7 +7,7 @@ The toolkit is the `.claude/` folder inside `sam-claude-kit/`: one rules file (`
 Guarantees of the installer below:
 
 - It never overwrites or edits an existing file. An existing file with the same name is kept and ours is skipped.
-- It only adds files under the repo's `.claude/`. It does not touch your user-level Claude Code configuration, any settings file, or anything outside the repo's `.claude/`.
+- It only adds files under the repo's `.claude/`. It does not touch your user-level Claude Code configuration or anything outside the repo's `.claude/`. The one existing file it edits is `.claude/settings.local.json`, where it merges seven narrow Bash allow rules for `pytest` (`pytest *`, and `python -m pytest *` or `python3 -m pytest *`, with or without a `venv/` or `.venv/` interpreter) and keeps everything already in the file. It adds no rule for `cat`, `grep`, `rg`, `python`, `curl`, or `uvicorn`: file reading and searching use Claude Code's own Read, Grep and Glob tools. Skip that with `--no-permissions`; `--uninstall` removes only the rules it added.
 - It records every file it added in `.claude/.sam-claude-kit-added`, so cleanup removes exactly those files.
 - If the repo already has `CLAUDE.md` (in `.claude/` or at the repo root), ours is installed as `.claude/sam-rules.md` and loaded with `--append-system-prompt-file`.
 
@@ -277,7 +277,7 @@ sam_kit_install
 done
 ```
 
-Your existing `.claude/rules/`, `.claude/settings*.json`, other skills, and other agents are never written. A same-named agent or skill of yours is kept and the kit's version is not installed.
+Your existing `.claude/rules/`, `.claude/settings.json`, other skills, and other agents are never written; `.claude/settings.local.json` only gets the pytest allow rules merged in. A same-named agent or skill of yours is kept and the kit's version is not installed.
 
 **Verify**
 

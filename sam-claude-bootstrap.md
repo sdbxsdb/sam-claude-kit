@@ -19,7 +19,7 @@ I supervise every change and must be able to explain it. A working, tested, simp
 
 ## 2. Exploring an unfamiliar codebase (read-only, lightweight)
 
-Edit nothing yet. Read only what the task touches, about 10 files, using targeted search (`rg`, or `grep -rn` if `rg` is missing) and focused reads. Do not survey the repo. Never open `.env*`, key files, or credential files.
+Edit nothing yet. Read only what the task touches, about 10 files, using targeted search and focused reads with the native Grep, Glob, and Read tools rather than shell commands. Do not survey the repo. Never open `.env*`, key files, or credential files.
 
 Find, in this order, and stop once the decision is supported:
 1. Stack: Python version, framework, Pydantic v1 or v2, ORM, test runner, formatter, linter.

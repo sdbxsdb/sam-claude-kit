@@ -13,12 +13,19 @@ What it does
   * Installs the kit's agents and skills under `sam-` names, so they never collide with the
     project's own `review`, `build-feature`, and so on.
   * Installs the engineering rules as CLAUDE.local.md (preferred) or .claude/rules/sam-rules.md.
-  * Records every file it creates, with a SHA-256, in .claude/sam-claude-kit.manifest.json.
-  * Never overwrites or edits an existing project file.
+  * Merges a short list of narrow Bash allow rules (pytest, in its common invocations) into
+    .claude/settings.local.json, keeping everything already in that file. Skip this with
+    --no-permissions.
+  * Records every file it creates, with a SHA-256, in .claude/sam-claude-kit.manifest.json, and
+    exactly which permission rules it added, so --uninstall removes only those.
+  * Never overwrites or edits any other existing project file.
 
 What it never does
-  * Touch application source, ~/.claude, ~/.cursor, settings files, or the network.
-  * Install hooks, credentials, MCP configuration, or permission changes.
+  * Touch application source, ~/.claude, ~/.cursor, any other settings file, or the network.
+  * Install hooks, credentials, MCP configuration, or any permission beyond the list above.
+  * Add an unrestricted Bash rule, a rule for python, curl, or uvicorn, or any write, edit, or
+    network permission. Reading and searching files uses Claude Code's native Read, Grep and
+    Glob tools, which need no rule.
   * Run other programs.
 
 Standard library only. Python 3.8 or newer.
@@ -26,6 +33,7 @@ Standard library only. Python 3.8 or newer.
 from __future__ import annotations
 
 import argparse
+import copy
 import datetime
 import hashlib
 import json
@@ -35,7 +43,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 PREFIX = "sam-"
 MANIFEST_REL = ".claude/sam-claude-kit.manifest.json"
 GIT_EXCLUDE_REL = ".git/info/exclude"
@@ -62,6 +70,25 @@ WRITE_TOOLS_ALLOWED = {"Read", "Grep", "Glob", "Edit", "Write", "Bash"}
 # permissionMode, allowed-tools, model, ...) aborts the install.
 ALLOWED_AGENT_KEYS = {"name", "description", "tools", "disallowedTools"}
 ALLOWED_SKILL_KEYS = {"name", "description"}
+
+# Project-local, personal settings file (not the shared .claude/settings.json). Claude Code reads
+# permissions.allow rules from it. Syntax: https://code.claude.com/docs/en/permissions
+# "Bash(pytest *)" matches `pytest` and `pytest -q tests/`. A rule matches the command text as
+# written, so each way of launching pytest needs its own rule, and `./venv/...` and `venv/...`
+# are different. Only pytest is allowed: no bare python, no curl, no uvicorn, no file readers.
+# The pattern below is also what a manifest must match, so an edited manifest cannot widen the list.
+SETTINGS_REL = ".claude/settings.local.json"
+KIT_PERMISSIONS = [
+    "Bash(pytest *)",
+    "Bash(python -m pytest *)",
+    "Bash(python3 -m pytest *)",
+    "Bash(venv/bin/python -m pytest *)",
+    "Bash(./venv/bin/python -m pytest *)",
+    "Bash(.venv/bin/python -m pytest *)",
+    "Bash(./.venv/bin/python -m pytest *)",
+]
+PERMISSION_RULE = re.compile(r"^Bash\((?:pytest|python3? -m pytest|(?:\./)?\.?venv/bin/python -m pytest) \*\)$")
+SETTINGS_KEYS = {"permissions", "allow"}
 
 RULES_TARGETS = {"local": "CLAUDE.local.md", "rules": ".claude/rules/sam-rules.md"}
 RULES_HEADER = (
@@ -286,7 +313,7 @@ def detect(root: Path) -> List[Tuple[str, str]]:
     settings = [p.name for p in sorted(claude.glob("settings*.json"))] if claude.is_dir() else []
     if (root / ".mcp.json").is_file():
         settings.append(".mcp.json")
-    rows.append(("settings / MCP files", ", ".join(settings) + " (never modified)" if settings else "none"))
+    rows.append(("settings / MCP files", ", ".join(settings) + " (existing settings are preserved)" if settings else "none"))
     rows.append(("git repository", "yes" if (root / ".git").exists() else "no"))
     return rows
 
@@ -368,8 +395,14 @@ def load_manifest(root: Path) -> Optional[dict]:
             if not ALLOWED_DIR_PATTERN.match(d):
                 raise ValueError("manifest lists a directory this installer would never create: %r" % d)
         for m in data.get("modified", []):
-            if m.get("path") != GIT_EXCLUDE_REL:
+            if m.get("path") == GIT_EXCLUDE_REL:
+                continue
+            if m.get("path") != SETTINGS_REL or m.get("type") != "permissions":
                 raise ValueError("manifest lists a modified file this installer would never edit: %r" % m.get("path"))
+            if not isinstance(m["added"], list) or not all(isinstance(r, str) and PERMISSION_RULE.match(r) for r in m["added"]):
+                raise ValueError("manifest lists a permission rule this installer would never add")
+            if not isinstance(m["created_file"], bool) or not set(m["created_keys"]) <= SETTINGS_KEYS:
+                raise ValueError("manifest has an invalid settings entry")
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise Abort("manifest %s is unreadable or not trusted (%s). Nothing was changed." % (MANIFEST_REL, exc))
     return data
@@ -391,6 +424,145 @@ def write_manifest(root: Path, files: List[dict], dirs: List[str], modified: Lis
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(str(tmp), str(path))
+
+
+# ---------------------------------------------------------------------------------------------
+# Permissions (merged into .claude/settings.local.json)
+# ---------------------------------------------------------------------------------------------
+
+def canon_rule(rule: object) -> object:
+    """`Bash(ls:*)` and `Bash(ls *)` are the same rule in Claude Code; compare them as one."""
+    return re.sub(r":\*\)$", " *)", rule) if isinstance(rule, str) else rule
+
+
+def read_settings(path: Path) -> Tuple[Optional[dict], str, str]:
+    """(parsed settings, raw text, problem). Parsed is None when the file cannot be merged safely."""
+    try:
+        text = path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return None, "", "cannot be read (%s)" % exc
+    try:
+        obj = json.loads(text)
+    except ValueError as exc:
+        return None, text, "is not valid JSON (%s)" % exc
+    if not isinstance(obj, dict):
+        return None, text, "is not a JSON object"
+    perms = obj.get("permissions", {})
+    if not isinstance(perms, dict):
+        return None, text, "has a 'permissions' value that is not an object"
+    for key in ("allow", "deny", "ask"):
+        if not isinstance(perms.get(key, []), list):
+            return None, text, "has permissions.%s that is not a list" % key
+    return obj, text, ""
+
+
+def merge_permissions(obj: dict, add: List[str]) -> Tuple[dict, List[str]]:
+    """Copy of obj with `add` appended to permissions.allow. Also returns the keys that did not exist."""
+    new = copy.deepcopy(obj)
+    created: List[str] = []
+    if "permissions" not in new:
+        new["permissions"] = {}
+        created.append("permissions")
+    if "allow" not in new["permissions"]:
+        new["permissions"]["allow"] = []
+        created.append("allow")
+    new["permissions"]["allow"].extend(add)
+    return new, created
+
+
+def strip_permissions(obj: dict, owned: List[str], created_keys: List[str], created_file: bool) -> Optional[dict]:
+    """Copy of obj without the rules this installer added. None means the file itself should go."""
+    new = copy.deepcopy(obj)
+    perms = new.get("permissions")
+    if isinstance(perms, dict) and isinstance(perms.get("allow"), list):
+        for rule in owned:
+            if rule in perms["allow"]:
+                perms["allow"].remove(rule)  # one occurrence: a duplicate you added yourself stays
+        if not perms["allow"] and "allow" in created_keys:
+            del perms["allow"]
+        if not perms and "permissions" in created_keys:
+            del new["permissions"]
+    return None if created_file and not new else new
+
+
+def dump_settings(obj: dict, original_text: str) -> str:
+    """Serialise with the indent and trailing newline the file already used (2 spaces for a new file)."""
+    match = re.search(r"^([ \t]+)\S", original_text, re.M)
+    indent = ("\t" if match.group(1).startswith("\t") else len(match.group(1))) if match else 2
+    newline = "\n" if not original_text or original_text.endswith("\n") else ""
+    return json.dumps(obj, indent=indent, ensure_ascii=False) + newline
+
+
+def write_atomic(path: Path, data: bytes) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(data)
+    if path.exists():
+        os.chmod(str(tmp), path.stat().st_mode & 0o7777)
+    os.replace(str(tmp), str(path))
+
+
+def plan_permissions(root: Path, manifest: Optional[dict], enabled: bool) -> dict:
+    """Decide what to do with the settings file. Nothing is written here.
+
+    status: create | restore | merge | unchanged | skip | off
+    """
+    prev = next((m for m in (manifest or {}).get("modified", []) if m["path"] == SETTINGS_REL), None)
+    plan: dict = {"status": "", "note": "", "add": [], "leftout": [], "original": {}, "text": "", "merged": {},
+                  "new_file": False, "new_keys": [],
+                  "owned": list(prev["added"]) if prev else [],
+                  "created_file": bool(prev and prev["created_file"]),
+                  "created_keys": list(prev["created_keys"]) if prev else []}
+    if not enabled:
+        plan.update(status="off", note="--no-permissions given; the settings file is not touched")
+        return plan
+    path = root / SETTINGS_REL
+    if not path_is_safe(root, SETTINGS_REL):
+        plan.update(status="skip", note="a symlink is in the path")
+        return plan
+    if path.is_symlink() or (path.exists() and not path.is_file()):
+        plan.update(status="skip", note="exists and is not a regular file")
+        return plan
+    if path.exists():
+        obj, text, problem = read_settings(path)
+        if obj is None:
+            plan.update(status="skip", note="left untouched: the file %s" % problem)
+            return plan
+        plan.update(original=obj, text=text)
+    else:
+        obj = {}
+        plan.update(new_file=True, created_file=True)
+    perms = obj.get("permissions", {})
+    present = {canon_rule(r) for r in perms.get("allow", [])}
+    refused = {canon_rule(r) for key in ("deny", "ask") for r in perms.get(key, [])}
+    for rule in KIT_PERMISSIONS:
+        if canon_rule(rule) in present:
+            continue
+        (plan["leftout"] if canon_rule(rule) in refused else plan["add"]).append(rule)
+    plan["merged"], plan["new_keys"] = merge_permissions(obj, plan["add"]) if plan["add"] else (obj, [])
+    plan["created_keys"] = sorted(set(plan["created_keys"]) | set(plan["new_keys"]))
+    plan["owned"] = plan["owned"] + [r for r in plan["add"] if r not in plan["owned"]]
+    if plan["new_file"]:
+        plan["status"] = "restore" if prev else "create"
+    else:
+        plan["status"] = "merge" if plan["add"] else "unchanged"
+    return plan
+
+
+def verify_permissions(root: Path, manifest: Optional[dict]) -> Tuple[List[str], int, int]:
+    """Check that every rule the manifest says was added is still in the settings file."""
+    entry = next((m for m in (manifest or {}).get("modified", []) if m["path"] == SETTINGS_REL), None)
+    if entry is None or not entry["added"]:
+        return [], 0, 0
+    path = root / SETTINGS_REL
+    if not path_is_safe(root, SETTINGS_REL) or not path.is_file():
+        return ["missing or unsafe: %s" % SETTINGS_REL], 0, len(entry["added"])
+    obj, _, problem = read_settings(path)
+    if obj is None:
+        return ["%s %s" % (SETTINGS_REL, problem)], 0, len(entry["added"])
+    allow = obj.get("permissions", {}).get("allow", [])
+    missing = [r for r in entry["added"] if r not in allow]
+    problems = ["permission rule no longer in %s (edited since install?): %s" % (SETTINGS_REL, r) for r in missing]
+    return problems, len(entry["added"]) - len(missing), len(entry["added"])
 
 
 # ---------------------------------------------------------------------------------------------
@@ -500,6 +672,7 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
     out()
 
     previous = {e["path"]: e for e in manifest["files"]} if manifest else {}
+    perm = plan_permissions(root, manifest, not args.no_permissions)
     actions = []  # (status, item)
     for item in plan:
         target = root / item["path"]
@@ -546,6 +719,8 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
     exclude_paths = [i["path"] for s, i, _ in actions if s in ("create", "restore", "update", "unchanged", "keep")]
     exclude_paths += [e["path"] for s, e, _ in retired if s == "keep"]
     exclude_paths.append(MANIFEST_REL)
+    if perm["created_file"]:
+        exclude_paths.append(SETTINGS_REL)
     git_dir = root / ".git"
     block = exclude_block(exclude_paths)
     recorded_block = next((m for m in (manifest or {}).get("modified", []) if m["path"] == GIT_EXCLUDE_REL), None)
@@ -558,6 +733,19 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
         else:
             out("  %-9s %-58s (.git is not a folder; skipped)" % ("skip", GIT_EXCLUDE_REL))
     out("  %-9s %-58s (records what this run created)" % ("write", MANIFEST_REL))
+    out()
+    out("PERMISSIONS (narrow Bash allow rules, merged into %s)" % SETTINGS_REL)
+    perm_what = {
+        "create": "new file; it holds only these rules",
+        "restore": "file was removed since the last run; recreated with these rules",
+        "merge": "existing file; every other setting and rule is kept",
+        "unchanged": "every rule is already present",
+    }
+    out("  %-9s %-58s%s" % (perm["status"], SETTINGS_REL, " (%s)" % (perm_what.get(perm["status"]) or perm["note"])))
+    for rule in perm["add"]:
+        out("            + %s" % rule)
+    for rule in perm["leftout"]:
+        out("            not added: %s is already in your deny or ask rules" % rule)
     out()
 
     blocked = [a for a in actions if a[0] == "blocked"]
@@ -574,6 +762,7 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
     by_path = {e["path"]: e for e in files_out}
     done: List[Tuple[str, str]] = []
     new_dirs: List[str] = []
+    settings_written = ""
     try:
         for status, item, _ in actions:
             target = root / item["path"]
@@ -619,6 +808,18 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
             with open(str(exclude_path), "ab") as handle:
                 handle.write((("\n" if needs_newline else "") + block).encode("utf-8"))
             modified.append({"path": GIT_EXCLUDE_REL, "type": "block", "block": block, "added_newline": needs_newline})
+        if perm["status"] in ("create", "restore", "merge"):
+            settings_path = root / SETTINGS_REL
+            ensure_dirs(root, ".claude", new_dirs)
+            if perm["new_file"]:
+                with open(str(settings_path), "xb") as handle:
+                    handle.write(dump_settings(perm["merged"], "").encode("utf-8"))
+            else:
+                write_atomic(settings_path, dump_settings(perm["merged"], perm["text"]).encode("utf-8"))
+            settings_written = "new" if perm["new_file"] else "merged"
+            modified = [m for m in modified if m["path"] != SETTINGS_REL]
+            modified.append({"path": SETTINGS_REL, "type": "permissions", "added": perm["owned"],
+                             "created_file": perm["created_file"], "created_keys": perm["created_keys"]})
         rules_entry = {"path": rules_rel, "mode": "local" if rules_rel == RULES_TARGETS["local"] else "rules"} if rules_rel else None
         ensure_dirs(root, ".claude", new_dirs)
         write_manifest(root, files_out, created_dirs + new_dirs, modified, rules_entry,
@@ -631,6 +832,13 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
                     (root / rel).unlink()
                 except OSError:
                     pass
+        try:
+            if settings_written == "new":
+                (root / SETTINGS_REL).unlink()
+            elif settings_written == "merged":
+                write_atomic(root / SETTINGS_REL, perm["text"].encode("utf-8"))
+        except OSError:
+            pass
         for rel in reversed(new_dirs):
             try:
                 (root / rel).rmdir()
@@ -645,20 +853,36 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
                             (" -- " + note) if note else ""))
     for status, entry, note in retired:
         out("  %-9s %s -- %s" % ("retired" if status == "retire" else status, entry["path"], note))
+    if perm["status"] != "off":
+        past = {"create": "created", "restore": "restored", "merge": "merged", "unchanged": "unchanged", "skip": "skipped"}
+        out("  %-9s %s%s" % (past[perm["status"]], SETTINGS_REL,
+                            (" -- " + perm["note"]) if perm["note"] else " (%d rule(s) added)" % len(perm["add"])))
     out()
 
     # Verification: nothing is reported as installed until it has been read back.
     kept_paths = {i["path"] for s, i, _ in actions if s == "keep"} | {e["path"] for s, e, _ in retired if s == "keep"}
     problems, verified, unverified = verify_manifest(root, load_manifest(root), skip=kept_paths)
     ours = {e["path"] for e in files_out} | {MANIFEST_REL} | {e["path"] for s, e, _ in retired if s in ("retire", "gone")}
+    if perm["status"] in ("create", "restore", "merge"):
+        ours.add(SETTINGS_REL)
+        read_back, _, problem = read_settings(root / SETTINGS_REL)
+        if read_back is None:
+            problems.append("%s %s" % (SETTINGS_REL, problem))
+        else:
+            rest = strip_permissions(read_back, perm["add"], perm["new_keys"], perm["new_file"])
+            if (rest if rest is not None else {}) != perm["original"]:
+                problems.append("%s: content other than the added rules differs from what was there before" % SETTINGS_REL)
     after, _ = snapshot(root)
     checked, changed = compare_snapshots(before, after, ours)
     problems += changed
     skipped = [a for a in actions if a[0] in ("skip", "keep")] + [r for r in retired if r[0] == "keep"]
+    skipped += [perm] if perm["status"] == "skip" else []
 
     out("VERIFICATION (files read back from disk)")
     out("  installed files verified : %d of %d" % (verified, len([e for e in files_out if e["path"] not in kept_paths])))
     out("  existing files unchanged : %d checked%s" % (checked - len(changed), " (first %d files only)" % SNAPSHOT_LIMIT if truncated else ""))
+    if perm["status"] in ("create", "restore", "merge"):
+        out("  settings file            : existing content identical, %d rule(s) added" % len(perm["add"]))
     for p in problems:
         out("  PROBLEM: %s" % p)
     out()
@@ -671,7 +895,7 @@ def run_install(args: argparse.Namespace, root: Path) -> int:
         out()
 
     out("NEXT STEPS")
-    out("  Start (or restart) Claude Code in this folder, then check: /memory, /agents, and type / for skills.")
+    out("  Start (or restart) Claude Code in this folder, then check: /memory, /agents, /permissions, and type / for skills.")
     if rules_rel == RULES_TARGETS["rules"]:
         out("  Rules are in .claude/rules/sam-rules.md and load automatically.")
     out("  Remove everything this installer added: python3 %s --uninstall" % sys.argv[0])
@@ -698,6 +922,7 @@ def verify_manifest(root: Path, manifest: Optional[dict], skip: Optional[set] = 
     unverified = [
         "that Claude Code loads these files: start it here and run /memory, /agents, and / (this script cannot start Claude Code)",
         "which Claude Code version you run: CLAUDE.local.md and .claude/rules/ loading was observed on 2.1.329 only",
+        "that Claude Code applies the permission rules: run /permissions in Claude Code to see them (syntax follows the current Claude Code documentation)",
     ]
     if manifest is None:
         return ["no manifest at %s: nothing to verify" % MANIFEST_REL], 0, unverified
@@ -730,6 +955,7 @@ def verify_manifest(root: Path, manifest: Optional[dict], skip: Optional[set] = 
             problems.append(str(exc))
             continue
         verified += 1
+    problems += verify_permissions(root, manifest)[0]
     expected = {PREFIX + n for n in NAMES}
     if require_complete and not problems and installed_names != expected:
         problems.append("installed agent/skill set is incomplete: missing %s" % ", ".join(sorted(expected - installed_names)))
@@ -742,6 +968,9 @@ def run_verify(args: argparse.Namespace, root: Path) -> int:
     problems, verified, unverified = verify_manifest(root, manifest, require_complete=True)
     total = len(manifest["files"]) if manifest else 0
     out("installed files verified : %d of %d" % (verified, total))
+    rules_ok, rules_total = verify_permissions(root, manifest)[1:]
+    if rules_total:
+        out("permission rules present : %d of %d in %s" % (rules_ok, rules_total, SETTINGS_REL))
     for p in problems:
         out("PROBLEM: %s" % p)
     out()
@@ -789,7 +1018,10 @@ def run_uninstall(args: argparse.Namespace, root: Path) -> int:
     for rel in gone:
         out("  gone      %s -- already absent" % rel)
     for m in manifest.get("modified", []):
-        out("  edit      %s -- remove the block this installer added" % m["path"])
+        if m.get("type") == "permissions":
+            out("  edit      %s -- remove only the %d permission rule(s) this installer added" % (m["path"], len(m["added"])))
+        else:
+            out("  edit      %s -- remove the block this installer added" % m["path"])
     out("  remove    %s -- once nothing else is left" % MANIFEST_REL)
     out()
     if args.dry_run:
@@ -806,6 +1038,23 @@ def run_uninstall(args: argparse.Namespace, root: Path) -> int:
     for m in manifest.get("modified", []):
         path = root / m["path"]
         done = False
+        if m.get("type") == "permissions":
+            if not path.exists():
+                block_notes.append("%s is already absent; no permission rules to remove" % m["path"])
+                continue
+            obj, text, problem = read_settings(path) if path_is_safe(root, m["path"]) and path.is_file() else (None, "", "is not a safe regular file")
+            if obj is None:
+                block_notes.append("could not edit %s (the file %s); left as is" % (m["path"], problem))
+                remaining_modified.append(m)
+                continue
+            rest = strip_permissions(obj, m["added"], m["created_keys"], m["created_file"])
+            if rest is None:
+                path.unlink()
+                block_notes.append("removed %s (this installer created it and nothing else was in it)" % m["path"])
+            else:
+                write_atomic(path, dump_settings(rest, text).encode("utf-8"))
+                block_notes.append("removed %d permission rule(s) from %s; everything else kept" % (len(m["added"]), m["path"]))
+            continue
         if path.is_file():
             current = path.read_bytes().decode("utf-8", "replace")
             snippet = ("\n" if m.get("added_newline") else "") + m["block"]
@@ -840,6 +1089,7 @@ def run_uninstall(args: argparse.Namespace, root: Path) -> int:
 
     after, _ = snapshot(root)
     ours = {e["path"] for e in manifest["files"]} | {MANIFEST_REL}
+    ours |= {m["path"] for m in manifest.get("modified", []) if m.get("type") == "permissions"}
     checked, changed = compare_snapshots(before, after, ours)
     still_there = [rel for rel in removed if (root / rel).exists()]
 
@@ -887,6 +1137,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
                         help="auto: CLAUDE.local.md, else .claude/rules/sam-rules.md. Never overwrites an existing file")
     parser.add_argument("--git-exclude", action="store_true",
                         help="add the installed paths to .git/info/exclude (local only; recorded and reversed on uninstall)")
+    parser.add_argument("--no-permissions", action="store_true",
+                        help="do not merge the pytest Bash allow rules into .claude/settings.local.json")
     parser.add_argument("--force", action="store_true", help="with --uninstall, also remove installed files you edited")
     parser.add_argument("--here", action="store_true", help="install in this folder even if it is inside a larger git repository")
     return parser.parse_args(argv)

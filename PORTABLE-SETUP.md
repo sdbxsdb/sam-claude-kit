@@ -30,7 +30,7 @@ Pasting text never creates subagents, skills, or tool restrictions. In D (chat-o
 - Adds `CLAUDE.local.md` (the rules), or `.claude/rules/sam-rules.md` if `CLAUDE.local.md` already exists, or skips the rules if both exist.
 - Adds agents `sam-learn-codebase`, `sam-implement-feature`, `sam-review`, `sam-fix-failure` and skills `sam-build-feature`, `sam-fastapi-engineering`, `sam-python-engineering`, `sam-test-strategy`. The `sam-` prefix means they cannot collide with your project's own `review` agent or `build-feature` skill.
 - Writes a manifest, `.claude/sam-claude-kit.manifest.json`, listing exactly the files it created with their hashes.
-- Never overwrites a file, never edits application source, never touches `~/.claude` or `~/.cursor`, never installs hooks, credentials, settings, or MCP configuration.
+- Never overwrites a file, never edits application source, never touches `~/.claude` or `~/.cursor`, never installs hooks, credentials, or MCP configuration. The only settings change is seven `pytest` Bash allow rules merged into `.claude/settings.local.json` (recorded in the manifest, removed by `--uninstall`, skipped with `--no-permissions`).
 - Checks every file after writing and reports `INSTALLED AND VERIFIED` only if all of them read back correctly. It also prints what it cannot verify (that Claude Code actually loads them).
 - Exit code `0` success, `1` failed or unverified, `2` usage or validation error (nothing changed), `3` partial.
 
@@ -43,7 +43,7 @@ python3 <kit>/bootstrap.py --verify         # re-check the installed files again
 python3 <kit>/bootstrap.py --uninstall      # remove exactly what it installed
 ```
 
-Options: `--git-exclude` hides the installed files from `git status` using `.git/info/exclude` (local only, reversed by uninstall). `--rules-mode local` or `rules` forces the rules location. `--here` installs in the current folder even when it is inside a larger Git repository (otherwise it refuses). `--force` with `--uninstall` also removes installed files you edited (otherwise they are kept and listed). `--kit <path>` points at the kit if the script was copied elsewhere.
+Options: `--git-exclude` hides the installed files from `git status` using `.git/info/exclude` (local only, reversed by uninstall). `--rules-mode local` or `rules` forces the rules location. `--no-permissions` skips the pytest Bash allow rules (the installer otherwise merges them into `.claude/settings.local.json`). `--here` installs in the current folder even when it is inside a larger Git repository (otherwise it refuses). `--force` with `--uninstall` also removes installed files you edited (otherwise they are kept and listed). `--kit <path>` points at the kit if the script was copied elsewhere.
 
 `<kit>` is the folder holding `bootstrap.py`, for example `~/sam-claude-kit`.
 
